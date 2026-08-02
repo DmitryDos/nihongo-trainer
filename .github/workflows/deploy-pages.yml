@@ -42,9 +42,9 @@ jobs:
 
       - run: touch out/.nojekyll # на всякий случай: не давать Pages трогать _next/
 
+      # Pages включается один раз вручную (Settings → Pages → Source: GitHub Actions):
+      # стандартный GITHUB_TOKEN не имеет прав создать сайт через API.
       - uses: actions/configure-pages@v5
-        with:
-          enablement: true # включить Pages (source: GitHub Actions) автоматически
 
       - uses: actions/upload-pages-artifact@v3
         with:
