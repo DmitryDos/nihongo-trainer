@@ -1,0 +1,61 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Права, нужные официальному деплою Pages из Actions.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Не гоняем два деплоя одновременно; новый пуш отменяет предыдущий прогон.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 8 # лок-файл 6.0 → pnpm 8 (иначе --frozen-lockfile упадёт)
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24 # проект рассчитан на node:sqlite из Node 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Статика в ./out. NEXT_PUBLIC_BASE_PATH включает basePath/assetPrefix и путь
+      # к sql-wasm.wasm под под-путь Pages (/<repo>/). Меняй только при переименовании репо.
+      - name: Build static site
+        run: pnpm build:mobile
+        env:
+          NEXT_PUBLIC_BASE_PATH: /nihongo-trainer
+
+      - run: touch out/.nojekyll # на всякий случай: не давать Pages трогать _next/
+
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true # включить Pages (source: GitHub Actions) автоматически
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: out
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
