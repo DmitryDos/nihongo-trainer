@@ -1,0 +1,10 @@
+{
+  "appId": "com.dmdos.nihongo",
+  "appName": "Nihongo",
+  "webDir": "out",
+  "plugins": {
+    "Keyboard": {
+      "resize": "none"
+    }
+  }
+}

@@ -1,36 +1,30 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# 日本語 тренажёр
 
-## Getting Started
+Персональный тренажёр японского: словарь, карточки с интервальным повторением,
+викторина, тест, чтение, разбор кандзи, а также тексты и предложения (генерация — через Claude).
 
-First, run the development server:
+## Стек
+
+Next.js 16 · React 19 · Tailwind 4 · SQLite (`node:sqlite` на сервере, sql.js в браузере).
+Слой данных (`src/lib/repo.js`) один и тот же на сервере и офлайн в браузере.
+
+## Запуск
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+pnpm install
+pnpm dev        # http://localhost:2323
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Генерация текстов и «level up» требуют Claude: либо локальный Claude Code CLI (вход через `claude`),
+либо `ANTHROPIC_API_KEY` в `.env.local` (шаблон — `.env.example`). Без ключа работают все режимы, кроме генерации.
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+## Сборки
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+pnpm build        # серверная сборка (API-роуты + файл SQLite)
+pnpm build:mobile # статика в ./out (данные локально: sql.js + IndexedDB)
+pnpm ios          # статика + Capacitor → Xcode
+```
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+`./out` — самодостаточная статика: её можно выложить на GitHub Pages / Cloudflare Pages / Netlify.
+В статической версии генерация недоступна (нет сервера).
