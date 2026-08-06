@@ -88,15 +88,17 @@ export function seedWords(db) {
   }
 }
 
-export function seedTextsIfEmpty(db) {
-  const { c } = db.prepare("SELECT COUNT(*) AS c FROM texts").get();
-  if (c > 0) return;
+// Идемпотентный догон предложений/текстов (по японскому) — как у слов и фраз:
+// новые заготовки из сида подхватываются и в уже существующую базу, прогресс цел.
+export function seedTexts(db) {
+  const existing = new Set(db.prepare("SELECT japanese FROM texts").all().map((r) => r.japanese));
   const now = Date.now();
   const insert = db.prepare(
     `INSERT INTO texts (kind, level, title, japanese, russian, source, created_at)
      VALUES (?, ?, ?, ?, ?, 'preset', ?)`
   );
   for (const t of SEED_TEXTS) {
+    if (existing.has(t.japanese)) continue;
     // У предложений заголовок не показываем (он бы спойлерил перевод); у текстов оставляем.
     const title = t.kind === "sentence" ? "" : t.title ?? "";
     insert.run(t.kind, t.level ?? "N5", title, t.japanese, t.russian, now);
@@ -182,12 +184,39 @@ export function migrateWords(db) {
   ).run();
 }
 
+// Разовое удаление 10 старых пресет-текстов, заменённых новым набором из 20
+// (флаг mig_texts). Трогаем только preset-тексты прежнего сида — пользовательские
+// и сгенерированные (source != 'preset') остаются на месте.
+const REMOVED_TEXTS = [
+  "私は毎朝六時に起きます。顔を洗って、朝ご飯を食べます。それからコーヒーを飲んで、新聞を読みます。七時半に家を出ます。",
+  "私は電車で学校に行きます。駅まで歩いて、電車に乗ります。学校は町の中にあります。友達と一緒に日本語を勉強します。",
+  "今日はスーパーへ買い物に行きました。野菜と魚と水を買いました。少し高かったですが、新しくておいしそうでした。",
+  "私は猫を飼っています。名前はタマです。タマは小さくて白いです。よく寝て、時々遊びます。私はタマが大好きです。",
+  "週末は友達と公園へ行きました。天気が良くて、暖かかったです。私たちは歩いて、写真を撮りました。とても楽しかったです。",
+  "私は毎日日本語を勉強します。新しい言葉を覚えるのは難しいですが、面白いです。分からない時は、先生に聞きます。",
+  "今日は朝から雨が降っています。私は傘を持って出かけました。電車は少し遅れましたが、仕事に間に合いました。",
+  "昨日、家族とレストランで晩ご飯を食べました。私は魚を注文しました。とてもおいしかったです。店の人は親切でした。",
+  "先月から新しい仕事を始めました。毎日忙しいですが、同僚は優しいです。少しずつ仕事を覚えています。もっと頑張りたいです。",
+  "来月、友達と京都へ旅行に行きます。古いお寺を見たり、有名な料理を食べたりしたいです。今、いいホテルを探しています。",
+];
+
+export function migrateTexts(db) {
+  const cur = Number(db.prepare("SELECT value FROM settings WHERE key = 'mig_texts'").get()?.value || 0);
+  if (cur >= 1) return;
+  const del = db.prepare("DELETE FROM texts WHERE japanese = ? AND source = 'preset'");
+  for (const jp of REMOVED_TEXTS) del.run(jp);
+  db.prepare(
+    "INSERT INTO settings (key, value) VALUES ('mig_texts', '1') ON CONFLICT(key) DO UPDATE SET value = excluded.value"
+  ).run();
+}
+
 // Полная инициализация: схема + сид (в порядке, как на сервере).
 export function initSchemaAndSeed(db) {
   db.exec(SCHEMA);
   seedWords(db);
   migrateWords(db);
-  seedTextsIfEmpty(db);
+  seedTexts(db);
+  migrateTexts(db);
   seedPhrases(db);
   seedWidgetPreset(db);
 }
